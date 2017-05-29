@@ -1,0 +1,81 @@
+diff -r 90d027eb635f src/Makefile
+--- a/src/Makefile	Sun Apr 30 22:14:00 2017 -0400
++++ b/src/Makefile	Mon May 29 14:46:46 2017 -0700
+@@ -1,7 +1,8 @@
+ # Copyright 2007-2017 Mitchell mitchell.att.foicica.com. See LICENSE.
+
+-CC = gcc
+-CXX = g++
++CC = clang
++CXX = clang++
++
+ ifeq (win, $(findstring win, $(MAKECMDGOALS)))
+   # Cross-compile for Win32.
+   CROSS = i686-w64-mingw32-
+@@ -34,11 +35,9 @@
+   libluajit = luajit/src/lua51.dll
+ else ifeq (osx, $(findstring osx, $(MAKECMDGOALS)))
+   # Cross-compile for Mac OSX.
+-  CROSS = i686-apple-darwin10-
+-  CFLAGS = -m32 -arch i386 -mdynamic-no-pic -mmacosx-version-min=10.5 \
+-           -isysroot /usr/lib/apple/SDKs/MacOSX10.5.sdk -Os
+-  CXXFLAGS = -m32 -arch i386 -mdynamic-no-pic -mmacosx-version-min=10.5 \
+-             -isysroot /usr/lib/apple/SDKs/MacOSX10.5.sdk -Os
++  CROSS =
++  CFLAGS = -mdynamic-no-pic $(shell pkg-config --cflags ncurses) -O2
++  CXXFLAGS = -mdynamic-no-pic $(shell pkg-config --cflags ncurses) -O2
+   LUA_CFLAGS = -DLUA_USE_MACOSX
+   LDFLAGS = -liconv -rdynamic
+   MAKE = make
+@@ -56,7 +55,7 @@
+                           --cflags glib-2.0)
+   else
+     plat_flag = -DCURSES -D_XOPEN_SOURCE_EXTENDED
+-    CURSES_LIBS = -lncurses
++    CURSES_LIBS = $(shell pkg-config --libs ncurses)
+   endif
+   libluajit = luajit/src/libluajit.osx.a
+ else
+@@ -101,7 +100,7 @@
+
+ sci_flags = -pedantic $(plat_flag) -DSCI_LEXER -DNDEBUG -DNO_CXX11_REGEX \
+             -DSCI_OWNREGEX -Iscintilla/include -Iscintilla/src \
+-            -Iscintilla/lexlib -Itre/lib -Wall
++            -Iscintilla/lexlib -Itre/lib -I/usr/local/include/glib-2.0 -I/usr/local/lib/glib-2.0/include -Wall
+
+ sci_objs = AutoComplete.o CallTip.o CaseConvert.o CaseFolder.o Catalogue.o \
+            CellBuffer.o CharClassify.o ContractionState.o Decoration.o \
+@@ -139,9 +138,11 @@
+ termkey_unix_objs = driver-ti.o driver-csi.o
+ termkey_win32_objs = driver-win32-pdcurses.o
+ termkey_objs = termkey.o $(termkey_unix_objs) $(termkey_win32_objs)
+-cdk_objs = binding.o buttonbox.o cdk.o cdk_display.o cdk_objs.o cdkscreen.o \
++# Need to prefix these b/c OS X filenames are case-insensitive and selection.o conflicts with scintilla's.
++cdk_objs_base = binding.o buttonbox.o cdk.o cdk_display.o cdk_objs.o cdkscreen.o \
+            draw.o entry.o fselect.o itemlist.o label.o mentry.o popup_label.o \
+            scroll.o scroller.o select_file.o selection.o traverse.o version.o
++cdk_objs = $(addprefix cdk-, $(cdk_objs_base))
+
+ # Add debugging symbols and disable optimizations when DEBUG=1.
+ # Note: In order to profile with gprof (-pg), do not retain symbols in LDFLAGS.
+@@ -193,7 +194,7 @@
+ $(gtdialog_objs): gtdialog/gtdialog.c
+ 	$(CROSS)$(CC) -c $(CFLAGS) -std=c99 -pedantic -D_POSIX_C_SOURCE=200809L \
+ 		$(gtdialog_flags) $< -o $@
+-$(cdk_objs): %.o: cdk/%.c
++$(cdk_objs): cdk-%.o: cdk/%.c
+ 	$(CROSS)$(CC) -c $(CFLAGS) -D_GNU_SOURCE -Itermkey -Icdk $(CURSES_CFLAGS) $< \
+ 		-o $@
+ $(termkey_objs): %.o: termkey/%.c
+diff -r 90d027eb635f src/textadept.c
+--- a/src/textadept.c	Sun Apr 30 22:14:00 2017 -0400
++++ b/src/textadept.c	Mon May 29 14:46:46 2017 -0700
+@@ -2488,7 +2488,7 @@
+   uint32_t size = FILENAME_MAX;
+   _NSGetExecutablePath(path, &size);
+   textadept_home = realpath(path, NULL);
+-  p = strstr(textadept_home, "MacOS"), strcpy(p, "Resources\0");
++  if ((last_slash = strrchr(textadept_home, '/'))) *last_slash = '\0';
+   free(path);
+ #if !CURSES
+   osxapp = g_object_new(GTKOSX_TYPE_APPLICATION, NULL);
