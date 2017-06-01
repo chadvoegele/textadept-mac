@@ -79,3 +79,31 @@ diff -r 90d027eb635f src/textadept.c
    free(path);
  #if !CURSES
    osxapp = g_object_new(GTKOSX_TYPE_APPLICATION, NULL);
+diff -r 90d027eb635f src/cdk/traverse.c
+--- a/src/cdk/traverse.c	2012-03-22 02:42:50.000000000 -0700
++++ b/src/cdk/traverse.c	2017-05-24 06:36:52.000000000 -0700
+@@ -79,15 +79,15 @@
+ 	 done = TRUE;
+ 	 break;
+ 
+-      case KEY_ESC:
+-	 /* cleanup the menu */
+-	 (void)injectCDKMenu ((CDKMENU *)menu, (chtype)key);
+-	 done = TRUE;
+-	 break;
+-
+-      default:
+-	 done = (injectCDKMenu ((CDKMENU *)menu, (chtype)key) >= 0);
+-	 break;
++ //     case KEY_ESC:
++ //  /* cleanup the menu */
++ //  (void)injectCDKMenu (menu, (chtype)key);
++ //  done = TRUE;
++ //  break;
++
++ //     default:
++ //  done = (injectCDKMenu (menu, (chtype)key) >= 0);
++ //  break;
+       }
+    }
+ 
