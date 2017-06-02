@@ -1,18 +1,7 @@
 diff -r 90d027eb635f src/Makefile
 --- a/src/Makefile	Sun Apr 30 22:14:00 2017 -0400
-+++ b/src/Makefile	Mon May 29 14:46:46 2017 -0700
-@@ -1,7 +1,8 @@
- # Copyright 2007-2017 Mitchell mitchell.att.foicica.com. See LICENSE.
-
--CC = gcc
--CXX = g++
-+CC = clang
-+CXX = clang++
-+
- ifeq (win, $(findstring win, $(MAKECMDGOALS)))
-   # Cross-compile for Win32.
-   CROSS = i686-w64-mingw32-
-@@ -34,11 +35,9 @@
++++ b/src/Makefile	Fri Jun 02 16:30:04 2017 -0700
+@@ -34,11 +34,17 @@
    libluajit = luajit/src/lua51.dll
  else ifeq (osx, $(findstring osx, $(MAKECMDGOALS)))
    # Cross-compile for Mac OSX.
@@ -20,32 +9,34 @@ diff -r 90d027eb635f src/Makefile
 -  CFLAGS = -m32 -arch i386 -mdynamic-no-pic -mmacosx-version-min=10.5 \
 -           -isysroot /usr/lib/apple/SDKs/MacOSX10.5.sdk -Os
 -  CXXFLAGS = -m32 -arch i386 -mdynamic-no-pic -mmacosx-version-min=10.5 \
--             -isysroot /usr/lib/apple/SDKs/MacOSX10.5.sdk -Os
-+  CROSS =
-+  CFLAGS = -mdynamic-no-pic $(shell pkg-config --cflags ncurses) -O2
-+  CXXFLAGS = -mdynamic-no-pic $(shell pkg-config --cflags ncurses) -O2
++  ifeq (Darwin, $(shell uname -s))
++    CROSS =
++    CFLAGS = -mdynamic-no-pic -D_DARWIN_C_SOURCE -I/usr/local/Cellar/ncurses/6.0_3/include -Os
++    CXXFLAGS = -mdynamic-no-pic -D_DARWIN_C_SOURCE -I/usr/local/Cellar/ncurses/6.0_3/include -Os
++  else
++    CROSS = i686-apple-darwin10-
++    CFLAGS = -m32 -arch i386 -mdynamic-no-pic -mmacosx-version-min=10.5 \
+              -isysroot /usr/lib/apple/SDKs/MacOSX10.5.sdk -Os
++    CXXFLAGS = -m32 -arch i386 -mdynamic-no-pic -mmacosx-version-min=10.5 \
++               -isysroot /usr/lib/apple/SDKs/MacOSX10.5.sdk -Os
++  endif
    LUA_CFLAGS = -DLUA_USE_MACOSX
    LDFLAGS = -liconv -rdynamic
    MAKE = make
-@@ -56,7 +55,7 @@
+@@ -56,7 +62,11 @@
                            --cflags glib-2.0)
    else
      plat_flag = -DCURSES -D_XOPEN_SOURCE_EXTENDED
 -    CURSES_LIBS = -lncurses
-+    CURSES_LIBS = $(shell pkg-config --libs ncurses)
++    ifeq (Darwin, $(shell uname -s))
++      CURSES_LIBS = -L/usr/local/Cellar/ncurses/6.0_3/lib -lncurses
++    else
++      CURSES_LIBS = -lncurses
++    endif
    endif
    libluajit = luajit/src/libluajit.osx.a
  else
-@@ -101,7 +100,7 @@
-
- sci_flags = -pedantic $(plat_flag) -DSCI_LEXER -DNDEBUG -DNO_CXX11_REGEX \
-             -DSCI_OWNREGEX -Iscintilla/include -Iscintilla/src \
--            -Iscintilla/lexlib -Itre/lib -Wall
-+            -Iscintilla/lexlib -Itre/lib -I/usr/local/include/glib-2.0 -I/usr/local/lib/glib-2.0/include -Wall
-
- sci_objs = AutoComplete.o CallTip.o CaseConvert.o CaseFolder.o Catalogue.o \
-            CellBuffer.o CharClassify.o ContractionState.o Decoration.o \
-@@ -139,9 +138,11 @@
+@@ -139,9 +149,11 @@
  termkey_unix_objs = driver-ti.o driver-csi.o
  termkey_win32_objs = driver-win32-pdcurses.o
  termkey_objs = termkey.o $(termkey_unix_objs) $(termkey_win32_objs)
@@ -58,7 +49,7 @@ diff -r 90d027eb635f src/Makefile
 
  # Add debugging symbols and disable optimizations when DEBUG=1.
  # Note: In order to profile with gprof (-pg), do not retain symbols in LDFLAGS.
-@@ -193,7 +194,7 @@
+@@ -193,7 +205,7 @@
  $(gtdialog_objs): gtdialog/gtdialog.c
  	$(CROSS)$(CC) -c $(CFLAGS) -std=c99 -pedantic -D_POSIX_C_SOURCE=200809L \
  		$(gtdialog_flags) $< -o $@
@@ -69,41 +60,18 @@ diff -r 90d027eb635f src/Makefile
  $(termkey_objs): %.o: termkey/%.c
 diff -r 90d027eb635f src/textadept.c
 --- a/src/textadept.c	Sun Apr 30 22:14:00 2017 -0400
-+++ b/src/textadept.c	Mon May 29 14:46:46 2017 -0700
-@@ -2488,7 +2488,7 @@
++++ b/src/textadept.c	Fri Jun 02 16:30:04 2017 -0700
+@@ -2488,7 +2488,12 @@
    uint32_t size = FILENAME_MAX;
    _NSGetExecutablePath(path, &size);
    textadept_home = realpath(path, NULL);
 -  p = strstr(textadept_home, "MacOS"), strcpy(p, "Resources\0");
-+  if ((last_slash = strrchr(textadept_home, '/'))) *last_slash = '\0';
++  p = strstr(textadept_home, "MacOS");
++  if (p != NULL) {
++    strcpy(p, "Resources\0");
++  } else {
++    if ((last_slash = strrchr(textadept_home, '/'))) *last_slash = '\0';
++  }
    free(path);
  #if !CURSES
    osxapp = g_object_new(GTKOSX_TYPE_APPLICATION, NULL);
-diff -r 90d027eb635f src/cdk/traverse.c
---- a/src/cdk/traverse.c	2012-03-22 02:42:50.000000000 -0700
-+++ b/src/cdk/traverse.c	2017-05-24 06:36:52.000000000 -0700
-@@ -79,15 +79,15 @@
- 	 done = TRUE;
- 	 break;
- 
--      case KEY_ESC:
--	 /* cleanup the menu */
--	 (void)injectCDKMenu ((CDKMENU *)menu, (chtype)key);
--	 done = TRUE;
--	 break;
--
--      default:
--	 done = (injectCDKMenu ((CDKMENU *)menu, (chtype)key) >= 0);
--	 break;
-+ //     case KEY_ESC:
-+ //  /* cleanup the menu */
-+ //  (void)injectCDKMenu (menu, (chtype)key);
-+ //  done = TRUE;
-+ //  break;
-+
-+ //     default:
-+ //  done = (injectCDKMenu (menu, (chtype)key) >= 0);
-+ //  break;
-       }
-    }
- 
