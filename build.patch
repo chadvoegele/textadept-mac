@@ -75,3 +75,23 @@ diff -r 90d027eb635f src/textadept.c
    free(path);
  #if !CURSES
    osxapp = g_object_new(GTKOSX_TYPE_APPLICATION, NULL);
+diff -r 90d027eb635f src/termkey.patch
+--- a/src/termkey.patch	Sun Apr 30 22:14:00 2017 -0400
++++ b/src/termkey.patch	Fri Jun 02 17:27:28 2017 -0700
+@@ -216,7 +216,7 @@
+    if(tk->fd != -1 && !(tk->flags & TERMKEY_FLAG_NOTERMIOS)) {
+      struct termios termios;
+      if(tcgetattr(tk->fd, &termios) == 0) {
+-@@ -472,9 +481,9 @@
++@@ -472,9 +481,10 @@
+          /* want no signal keys at all, so just disable ISIG */
+          termios.c_lflag &= ~ISIG;
+        else {
+@@ -225,6 +225,7 @@
+          termios.c_cc[VQUIT] = _POSIX_VDISABLE;
+ -        termios.c_cc[VSUSP] = _POSIX_VDISABLE;
+ +        termios.c_cc[VINTR] = _POSIX_VDISABLE;
+++        termios.c_cc[VLNEXT] = _POSIX_VDISABLE;
+          /* Some OSes have Ctrl-Y==VDSUSP */
+  #ifdef VDSUSP
+          termios.c_cc[VDSUSP] = _POSIX_VDISABLE;
