@@ -1,42 +1,32 @@
-diff -r 90d027eb635f src/Makefile
---- a/src/Makefile	Sun Apr 30 22:14:00 2017 -0400
-+++ b/src/Makefile	Fri Jun 02 16:30:04 2017 -0700
-@@ -34,11 +34,17 @@
-   libluajit = luajit/src/lua51.dll
+diff -r e2c08dc37617 src/Makefile
+--- a/src/Makefile	Wed May 02 11:01:52 2018 -0400
++++ b/src/Makefile	Wed May 02 08:51:30 2018 -0700
+@@ -36,7 +36,11 @@
+   endif
  else ifeq (osx, $(findstring osx, $(MAKECMDGOALS)))
    # Cross-compile for Mac OSX.
--  CROSS = i686-apple-darwin10-
--  CFLAGS = -m32 -arch i386 -mdynamic-no-pic -mmacosx-version-min=10.5 \
--           -isysroot /usr/lib/apple/SDKs/MacOSX10.5.sdk -Os
--  CXXFLAGS = -m32 -arch i386 -mdynamic-no-pic -mmacosx-version-min=10.5 \
+-  CROSS = x86_64-apple-darwin9-
 +  ifeq (Darwin, $(shell uname -s))
 +    CROSS =
-+    CFLAGS = -mdynamic-no-pic -D_DARWIN_C_SOURCE -I/usr/local/Cellar/ncurses/6.0_3/include -Os
-+    CXXFLAGS = -mdynamic-no-pic -D_DARWIN_C_SOURCE -I/usr/local/Cellar/ncurses/6.0_3/include -Os
 +  else
-+    CROSS = i686-apple-darwin10-
-+    CFLAGS = -m32 -arch i386 -mdynamic-no-pic -mmacosx-version-min=10.5 \
-              -isysroot /usr/lib/apple/SDKs/MacOSX10.5.sdk -Os
-+    CXXFLAGS = -m32 -arch i386 -mdynamic-no-pic -mmacosx-version-min=10.5 \
-+               -isysroot /usr/lib/apple/SDKs/MacOSX10.5.sdk -Os
++    CROSS = x86_64-apple-darwin9-
 +  endif
+   CFLAGS += -mdynamic-no-pic
+   CXXFLAGS += -mdynamic-no-pic
    LUA_CFLAGS = -DLUA_USE_MACOSX
-   LDFLAGS = -liconv -rdynamic
-   MAKE = make
-@@ -56,7 +62,11 @@
-                           --cflags glib-2.0)
+@@ -56,6 +60,11 @@
    else
-     plat_flag = -DCURSES -D_XOPEN_SOURCE_EXTENDED
--    CURSES_LIBS = -lncurses
+     plat_flag = -DCURSES
+     CURSES_LIBS = -lncurses
 +    ifeq (Darwin, $(shell uname -s))
-+      CURSES_LIBS = -L/usr/local/Cellar/ncurses/6.0_3/lib -lncurses
-+    else
-+      CURSES_LIBS = -lncurses
++      CURSES_LIBS += -L/usr/local/Cellar/ncurses/6.0_3/lib
++      CFLAGS += -D_DARWIN_C_SOURCE -I/usr/local/Cellar/ncurses/6.0_3/include
++      CXXFLAGS += -D_DARWIN_C_SOURCE -I/usr/local/Cellar/ncurses/6.0_3/include
 +    endif
    endif
-   libluajit = luajit/src/libluajit.osx.a
  else
-@@ -139,9 +149,11 @@
+   # Build for Linux/BSD.
+@@ -136,9 +145,11 @@
  termkey_unix_objs = driver-ti.o driver-csi.o
  termkey_win32_objs = driver-win32-pdcurses.o
  termkey_objs = termkey.o $(termkey_unix_objs) $(termkey_win32_objs)
@@ -49,19 +39,19 @@ diff -r 90d027eb635f src/Makefile
 
  # Add debugging symbols and disable optimizations when DEBUG=1.
  # Note: In order to profile with gprof (-pg), do not retain symbols in LDFLAGS.
-@@ -193,7 +205,7 @@
+@@ -180,7 +191,7 @@
  $(gtdialog_objs): gtdialog/gtdialog.c
- 	$(CROSS)$(CC) -c $(CFLAGS) -std=c99 -pedantic -D_POSIX_C_SOURCE=200809L \
- 		$(gtdialog_flags) $< -o $@
+ 	$(CROSS)$(CC) -c $(CFLAGS) -std=c99 -pedantic $(plat_flag) -DNOHELP \
+ 		-DLIBRARY $(gtdialog_flags) $< -o $@
 -$(cdk_objs): %.o: cdk/%.c
 +$(cdk_objs): cdk-%.o: cdk/%.c
  	$(CROSS)$(CC) -c $(CFLAGS) -D_GNU_SOURCE -Itermkey -Icdk $(CURSES_CFLAGS) $< \
  		-o $@
  $(termkey_objs): %.o: termkey/%.c
-diff -r 90d027eb635f src/textadept.c
---- a/src/textadept.c	Sun Apr 30 22:14:00 2017 -0400
-+++ b/src/textadept.c	Fri Jun 02 16:30:04 2017 -0700
-@@ -2488,7 +2488,12 @@
+diff -r e2c08dc37617 src/textadept.c
+--- a/src/textadept.c	Wed May 02 11:01:52 2018 -0400
++++ b/src/textadept.c	Wed May 02 08:51:30 2018 -0700
+@@ -2456,7 +2456,12 @@
    uint32_t size = FILENAME_MAX;
    _NSGetExecutablePath(path, &size);
    textadept_home = realpath(path, NULL);
@@ -75,10 +65,10 @@ diff -r 90d027eb635f src/textadept.c
    free(path);
  #if !CURSES
    osxapp = g_object_new(GTKOSX_TYPE_APPLICATION, NULL);
-diff -r 90d027eb635f src/termkey.patch
---- a/src/termkey.patch	Sun Apr 30 22:14:00 2017 -0400
-+++ b/src/termkey.patch	Fri Jun 02 17:27:28 2017 -0700
-@@ -216,7 +216,7 @@
+diff -r e2c08dc37617 src/termkey.patch
+--- a/src/termkey.patch	Wed May 02 11:01:52 2018 -0400
++++ b/src/termkey.patch	Wed May 02 08:51:30 2018 -0700
+@@ -218,7 +218,7 @@
     if(tk->fd != -1 && !(tk->flags & TERMKEY_FLAG_NOTERMIOS)) {
       struct termios termios;
       if(tcgetattr(tk->fd, &termios) == 0) {
@@ -87,7 +77,7 @@ diff -r 90d027eb635f src/termkey.patch
           /* want no signal keys at all, so just disable ISIG */
           termios.c_lflag &= ~ISIG;
         else {
-@@ -225,6 +225,7 @@
+@@ -227,6 +227,7 @@
           termios.c_cc[VQUIT] = _POSIX_VDISABLE;
  -        termios.c_cc[VSUSP] = _POSIX_VDISABLE;
  +        termios.c_cc[VINTR] = _POSIX_VDISABLE;
