@@ -10,4 +10,4 @@
 6) `../textadept-curses`
 
 # Notes
-Tested on macOS Sierra. Textadept repo revision: changeset 2329:90d027eb635f
+Tested on macOS Sierra. Textadept repo revision: changeset: 2472:e2c08dc37617
